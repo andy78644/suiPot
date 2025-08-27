@@ -1,0 +1,39 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:walrus": "next build && touch out/.nojekyll",
+    "deploy:walrus": "site-builder --config ~/.config/walrus/sites-config.yaml publish out",
+    "deploy:update": "site-builder --config ~/.config/walrus/sites-config.yaml update out",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.7",
+    "@mysten/dapp-kit": "^0.17.5",
+    "@mysten/sui": "^1.37.4",
+    "@suiet/wallet-kit": "^0.5.1",
+    "@tanstack/react-query": "^5.85.5",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.12",
+    "next": "14.2.32",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.62.0",
+    "react-hot-toast": "^2.6.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.32",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
