@@ -1,4 +1,4 @@
-import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClientQuery } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { toast } from 'react-hot-toast';
 import { WalletInfo, TransactionResult } from '@/types/lottery';
@@ -9,6 +9,18 @@ export const useWallet = (): WalletInfo & {
 } => {
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+
+  // 查詢 SUI 餘額
+  const { data: balance } = useSuiClientQuery(
+    'getBalance',
+    {
+      owner: currentAccount?.address ?? '',
+      coinType: '0x2::sui::SUI',
+    },
+    {
+      enabled: !!currentAccount?.address,
+    }
+  );
 
   const executeTransaction = async (tx: Transaction): Promise<TransactionResult> => {
     return new Promise((resolve) => {
@@ -44,9 +56,11 @@ export const useWallet = (): WalletInfo & {
     });
   };
 
+  const suiBalance = balance ? parseInt(balance.totalBalance) / 1_000_000_000 : 0;
+
   return {
     address: currentAccount?.address || null,
-    balance: 0, // TODO: 實現餘額查詢
+    balance: suiBalance,
     isConnected: !!currentAccount,
     signAndExecute: executeTransaction,
   };
@@ -54,14 +68,24 @@ export const useWallet = (): WalletInfo & {
 
 // 餘額查詢 Hook
 export const useBalance = (address: string | null) => {
-  // TODO: 實現 SUI 餘額查詢
-  // 使用 React Query 進行快取和自動刷新
-  console.log('Fetching balance for address:', address);
+  const { data: balance, isLoading, error, refetch } = useSuiClientQuery(
+    'getBalance',
+    {
+      owner: address ?? '',
+      coinType: '0x2::sui::SUI',
+    },
+    {
+      enabled: !!address,
+      refetchInterval: 30000, // 每30秒刷新一次
+    }
+  );
+
+  const suiBalance = balance ? parseInt(balance.totalBalance) / 1_000_000_000 : 0;
   
   return {
-    balance: 0,
-    isLoading: false,
-    error: null,
-    refetch: () => {},
+    balance: suiBalance,
+    isLoading,
+    error,
+    refetch,
   };
 };

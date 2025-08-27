@@ -104,3 +104,10 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 export function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+// 格式化 Sui 地址
+export function formatSuiAddress(address: string, length: number = 8): string {
+  if (!address) return '';
+  if (address.length <= length * 2) return address;
+  return `${address.slice(0, length)}...${address.slice(-length)}`;
+}
