@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useLottery } from '@/hooks/useLottery';
-import CountdownTimer from './CountdownTimer';
 import Button from '@/components/ui/Button';
+import CountdownTimer from './CountdownTimer';
+import NumberSelector from './NumberSelector';
 
 interface LotteryDashboardProps {
   className?: string;
@@ -29,6 +30,27 @@ export default function LotteryDashboard({
     roundStatus: currentRound?.status || 'Open',
     winningNumbers: null as number[] | null
   });
+
+  // 處理手動選號購票
+  const handleManualPurchase = (selectedNumbers: number[]) => {
+    if (!currentRound) return;
+    
+    if (showDevTools) {
+      // 開發模式：模擬購票成功，更新本地數據
+      setDevData(prev => ({
+        ...prev,
+        ticketsSold: prev.ticketsSold + 1,
+        prizePool: prev.prizePool + currentRound.ticket_price
+      }));
+      console.log('模擬手動購票成功:', selectedNumbers);
+    } else {
+      // 真實模式：實際發送交易
+      purchaseTickets({
+        roundId: currentRound.round_id,
+        numberSets: [selectedNumbers]
+      });
+    }
+  };
 
   // 模擬開獎功能
   const handleMockDraw = () => {
@@ -142,25 +164,23 @@ export default function LotteryDashboard({
 
           {/* 快速購票 */}
           {(showDevTools ? devData.roundStatus : currentRound.status) === 'Open' && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                onClick={handleQuickPurchase}
-                loading={!showDevTools && isPurchasing}
-                className="flex-1"
-              >
-                {showDevTools ? '模擬購票 (隨機號碼)' : '快速購票 (隨機號碼)'}
-              </Button>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  onClick={handleQuickPurchase}
+                  loading={!showDevTools && isPurchasing}
+                  className="flex-1"
+                >
+                  {showDevTools ? '模擬購票 (隨機號碼)' : '快速購票 (隨機號碼)'}
+                </Button>
+              </div>
               
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  // TODO: 導航到詳細購票頁面
-                  console.log('Navigate to detailed purchase page');
-                }}
-              >
-                選擇號碼購票
-              </Button>
+              {/* 號碼選擇器 */}
+              <NumberSelector
+                onSubmit={handleManualPurchase}
+                isLoading={!showDevTools && isPurchasing}
+                showDevTools={showDevTools}
+              />
             </div>
           )}
 
