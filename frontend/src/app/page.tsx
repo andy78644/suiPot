@@ -1,146 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useWallet } from '@/hooks/useWallet';
+import React from 'react';
 import { useLottery } from '@/hooks/useLottery';
-import { useMockLottery } from '@/hooks/useMockLottery';
 import { Navbar } from '@/components/layout/Navbar';
 import { WalletConnector } from '@/components/wallet/WalletConnector';
-import Button from '@/components/ui/Button';
-import { formatNumber, formatCountdown, generateRandomNumbers, validateNumbers } from '@/lib/utils';
-import { LOTTERY_CONSTANTS } from '@/constants/lottery';
-import toast from 'react-hot-toast';
+import LotteryDashboard from '@/components/lottery/LotteryDashboard';
+import CountdownTimer from '@/components/lottery/CountdownTimer';
 
 export default function HomePage() {
-  const { isConnected } = useWallet();
-  
   // 檢查是否使用模擬數據
   const useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
   
   // 根據設定選擇使用真實或模擬數據
   const realLottery = useLottery();
-  const mockLottery = useMockLottery();
-  
-  const lotteryHook = useMockData ? mockLottery : realLottery;
-  const { 
-    currentRound,
-    nextRound,
-    isLoadingRounds,
-    userTickets,
-    isLoadingTickets,
-    purchaseTickets,
-    isPurchasing,
-    useCountdown
-  } = lotteryHook;
-
-  // 為了兼容現有代碼，創建一個 lottery 對象
-  const lottery = currentRound ? {
-    round: parseInt(currentRound.round_id.replace('round_', '')),
-    state: currentRound.status === 'Open' ? 'OPEN' : 
-           currentRound.status === 'Drawing' ? 'DRAWING' : 'CLOSED',
-    ticketPrice: BigInt(currentRound.ticket_price * 1_000_000_000), // 轉換為 MIST
-    currentPool: BigInt(currentRound.prize_pool * 1_000_000_000),
-    drawTime: currentRound.end_time,
-    totalTickets: currentRound.total_tickets_sold,
-    winningNumbers: null // TODO: 從合約獲取中獎號碼
-  } : null;
-
-  // 使用新的倒數計時 hook
-  const countdownQuery = useCountdown(currentRound?.end_time || 0);
-  const timeLeft = countdownQuery.data;
-
-  const isLoading = useMockData ? mockLottery.isLoading : isLoadingRounds;
-  const isBuying = useMockData ? mockLottery.isBuying : isPurchasing;
-
-  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
-  const [countdown, setCountdown] = useState(0);
-
-  // 倒數計時器
-  useEffect(() => {
-    if (!currentRound?.end_time) return;
-
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.max(0, Math.floor((currentRound.end_time - now) / 1000));
-      setCountdown(remaining);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [currentRound?.end_time]);
-
-  // 選擇號碼
-  const toggleNumber = (num: number) => {
-    setSelectedNumbers(prev => {
-      if (prev.includes(num)) {
-        return prev.filter(n => n !== num);
-      } else if (prev.length < LOTTERY_CONSTANTS.NUMBERS_PER_TICKET) {
-        return [...prev, num].sort((a, b) => a - b);
-      } else {
-        toast.error(`最多只能選擇 ${LOTTERY_CONSTANTS.NUMBERS_PER_TICKET} 個號碼`);
-        return prev;
-      }
-    });
-  };
-
-  // 隨機選號
-  const randomSelect = () => {
-    const randomNumbers = generateRandomNumbers();
-    setSelectedNumbers(randomNumbers);
-  };
-
-  // 清除選號
-  const clearNumbers = () => {
-    setSelectedNumbers([]);
-  };
-
-  // 購買彩票
-  const handleBuyTicket = async () => {
-    if (!isConnected) {
-      toast.error('請先連接錢包');
-      return;
-    }
-
-    const validation = validateNumbers(selectedNumbers);
-    if (!validation.isValid) {
-      toast.error(validation.error || '選號無效');
-      return;
-    }
-
-    if (!currentRound) {
-      toast.error('當前沒有開放的樂透輪次');
-      return;
-    }
-
-    try {
-      if (useMockData) {
-        // 使用模擬數據的購票邏輯
-        const success = await mockLottery.buyTicket(selectedNumbers);
-        if (success) {
-          setSelectedNumbers([]);
-          toast.success('購票成功！');
-        }
-      } else {
-        // 使用真實合約的購票邏輯
-        purchaseTickets({
-          roundId: currentRound.round_id,
-          numberSets: [selectedNumbers]
-        });
-        setSelectedNumbers([]);
-        toast.success('購票交易已提交！');
-      }
-    } catch (error) {
-      console.error('購票失敗:', error);
-      toast.error('購票失敗，請重試');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600 text-xl">加載中...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -155,251 +27,107 @@ export default function HomePage() {
           <p className="text-lg text-gray-600">
             基於 Sui 區塊鏈的去中心化彩票遊戲
           </p>
+          {useMockData && (
+            <div className="mt-2 inline-block px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
+              🚧 模擬模式
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 左側 - 彩票信息 */}
-          <div className="lg:col-span-2">
-            {lottery && (
-              <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  第 {lottery.round} 期彩票
-                </h3>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {formatNumber(Number(lottery.currentPool) / 1_000_000_000)} SUI
-                    </div>
-                    <div className="text-sm text-gray-500">總獎池</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {formatNumber(Number(lottery.ticketPrice) / 1_000_000_000)} SUI
-                    </div>
-                    <div className="text-sm text-gray-500">票價</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {lottery.totalTickets}
-                    </div>
-                    <div className="text-sm text-gray-500">已售票數</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {formatCountdown(countdown)}
-                    </div>
-                    <div className="text-sm text-gray-500">開獎倒數</div>
-                  </div>
-                </div>
-
-                {lottery.state === 'OPEN' && (
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4">選擇您的幸運號碼</h4>
-                    
-                    {/* 號碼選擇區 */}
-                    <div className="grid grid-cols-10 gap-2 mb-6">
-                      {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => toggleNumber(num)}
-                          className={`
-                            w-10 h-10 rounded-lg font-semibold transition-colors
-                            ${selectedNumbers.includes(num)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }
-                          `}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* 已選號碼顯示 */}
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-600 mb-2">
-                        已選號碼 ({selectedNumbers.length}/{LOTTERY_CONSTANTS.NUMBERS_PER_TICKET}):
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {selectedNumbers.map((num) => (
-                          <span
-                            key={num}
-                            className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                          >
-                            {num}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 操作按鈕 */}
-                    <div className="flex gap-4 mb-6">
-                      <Button
-                        variant="outline"
-                        onClick={randomSelect}
-                        size="sm"
-                      >
-                        隨機選號
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={clearNumbers}
-                        size="sm"
-                      >
-                        清除選號
-                      </Button>
-                    </div>
-
-                    {/* 購買按鈕 */}
-                    {isConnected ? (
-                      <Button
-                        onClick={handleBuyTicket}
-                        disabled={selectedNumbers.length !== LOTTERY_CONSTANTS.NUMBERS_PER_TICKET || isBuying}
-                        loading={isBuying}
-                        className="w-full"
-                      >
-                        {isBuying ? '購買中...' : `購買彩票 (${formatNumber(Number(lottery.ticketPrice) / 1_000_000_000)} SUI)`}
-                      </Button>
-                    ) : (
-                      <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-yellow-700">請先連接錢包以購買彩票</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 中獎號碼顯示 */}
-                {lottery.winningNumbers && lottery.winningNumbers.length > 0 && (
-                  <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="text-lg font-semibold text-green-800 mb-2">中獎號碼</h4>
-                    <div className="flex gap-2">
-                      {lottery.winningNumbers.map((num, index) => (
-                        <div
-                          key={index}
-                          className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"
-                        >
-                          {num}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 我的彩票 */}
-            {userTickets && userTickets.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  我的彩票 ({userTickets.length})
-                </h3>
-                <div className="space-y-3">
-                  {userTickets.map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex gap-2">
-                        {ticket.numbers.map((num, index) => (
-                          <div
-                            key={index}
-                            className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold"
-                          >
-                            {num}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        第 {ticket.round} 期
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* 主要內容區域 */}
+          <div className="lg:col-span-3">
+            {/* 統一使用 LotteryDashboard，模擬模式通過 showDevTools 參數控制 */}
+            <LotteryDashboard showDevTools={useMockData} />
           </div>
 
-          {/* 右側 - 錢包信息 */}
+          {/* 右側邊欄 */}
           <div className="space-y-6">
+            {/* 錢包連接 */}
             <WalletConnector />
+            
+            {/* 倒數計時 */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">⏰ 開獎倒數</h3>
+              <CountdownTimer />
+            </div>
             
             {/* 遊戲說明 */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">遊戲說明</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">📋 遊戲說明</h3>
               <div className="space-y-3 text-sm text-gray-600">
                 <p>• 選擇 6 個號碼 (1-50)</p>
-                <p>• 每張彩票 0.1 SUI</p>
-                <p>• 每期開獎時間為每周日晚上 8 點</p>
-                <p>• 獎金池按比例分配給中獎者</p>
+                <p>• 每張彩票 1 SUI</p>
+                <p>• 每期持續 7 天</p>
+                <p>• 自動開獎和獎金分配</p>
                 <p>• 所有交易都在 Sui 區塊鏈上透明執行</p>
+                {useMockData && (
+                  <p className="text-yellow-600 font-medium">• 🚧 模擬模式：可調整數值進行測試</p>
+                )}
               </div>
             </div>
 
             {/* 獎金分配 */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">獎金分配</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">🏆 獎金分配</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">一等獎 (6個號碼)</span>
-                  <span className="font-semibold text-yellow-600">60%</span>
+                  <span className="text-sm text-gray-600">頭獎 (6個號碼)</span>
+                  <span className="font-semibold text-yellow-600">65%</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">二等獎 (5個號碼)</span>
-                  <span className="font-semibold text-blue-600">25%</span>
+                  <span className="text-sm text-gray-600">二獎 (5個號碼)</span>
+                  <span className="font-semibold text-blue-600">20%</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">三等獎 (4個號碼)</span>
-                  <span className="font-semibold text-green-600">15%</span>
+                  <span className="text-sm text-gray-600">三獎 (4個號碼)</span>
+                  <span className="font-semibold text-green-600">10%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">平台手續費</span>
+                  <span className="font-semibold text-gray-600">5%</span>
                 </div>
               </div>
             </div>
+
+            {/* 輪次資訊 */}
+            {realLottery.currentRound && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">🎲 當前輪次</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">期數：</span>
+                    <span className="font-semibold">
+                      第 {realLottery.currentRound.round_id.replace('round_', '')} 期
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">狀態：</span>
+                    <span className={`font-semibold ${
+                      realLottery.currentRound.status === 'Open' ? 'text-green-600' :
+                      realLottery.currentRound.status === 'Drawing' ? 'text-yellow-600' :
+                      'text-gray-600'
+                    }`}>
+                      {realLottery.currentRound.status === 'Open' ? '投注中' :
+                       realLottery.currentRound.status === 'Drawing' ? '開獎中' : '已結束'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">開始時間：</span>
+                    <span className="font-semibold text-xs">
+                      {new Date(realLottery.currentRound.start_time).toLocaleDateString('zh-TW')}
+                    </span>
+                  </div>
+                  {useMockData && (
+                    <div className="mt-2 p-2 bg-yellow-50 rounded text-xs text-yellow-700">
+                      模擬模式：可在左側面板調整數值
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* 開發工具 - 只在模擬模式下顯示 */}
-        {useMockData && (
-          <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-yellow-800 mb-4">🛠️ 開發工具</h3>
-            <div className="flex gap-4 flex-wrap">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if ('toggleLotteryState' in mockLottery) {
-                    (mockLottery as { toggleLotteryState: () => void }).toggleLotteryState();
-                  }
-                }}
-                size="sm"
-              >
-                切換彩票狀態 (當前: {lottery?.state})
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if ('resetMockData' in mockLottery) {
-                    (mockLottery as { resetMockData: () => void }).resetMockData();
-                  }
-                }}
-                size="sm"
-              >
-                重置模擬數據
-              </Button>
-              {lottery?.state === 'OPEN' && (
-                <Button
-                  variant="outline"
-                  onClick={() => mockLottery.draw()}
-                  disabled={mockLottery.isDrawing}
-                  size="sm"
-                >
-                  {mockLottery.isDrawing ? '開獎中...' : '執行開獎'}
-                </Button>
-              )}
-            </div>
-            <p className="text-sm text-yellow-700 mt-2">
-              💡 這些工具只在開發模式下可見，幫助您測試各種功能
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
