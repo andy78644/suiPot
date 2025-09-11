@@ -23,28 +23,50 @@ export default function HomePage() {
   
   const lotteryHook = useMockData ? mockLottery : realLottery;
   const { 
-    lottery, 
-    userTickets, 
-    isLoading, 
-    buyTicket, 
-    isBuying 
+    currentRound,
+    nextRound,
+    isLoadingRounds,
+    userTickets,
+    isLoadingTickets,
+    purchaseTickets,
+    isPurchasing,
+    useCountdown
   } = lotteryHook;
+
+  // 為了兼容現有代碼，創建一個 lottery 對象
+  const lottery = currentRound ? {
+    round: parseInt(currentRound.round_id.replace('round_', '')),
+    state: currentRound.status === 'Open' ? 'OPEN' : 
+           currentRound.status === 'Drawing' ? 'DRAWING' : 'CLOSED',
+    ticketPrice: BigInt(currentRound.ticket_price * 1_000_000_000), // 轉換為 MIST
+    currentPool: BigInt(currentRound.prize_pool * 1_000_000_000),
+    drawTime: currentRound.end_time,
+    totalTickets: currentRound.total_tickets_sold,
+    winningNumbers: null // TODO: 從合約獲取中獎號碼
+  } : null;
+
+  // 使用新的倒數計時 hook
+  const countdownQuery = useCountdown(currentRound?.end_time || 0);
+  const timeLeft = countdownQuery.data;
+
+  const isLoading = useMockData ? mockLottery.isLoading : isLoadingRounds;
+  const isBuying = useMockData ? mockLottery.isBuying : isPurchasing;
 
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [countdown, setCountdown] = useState(0);
 
   // 倒數計時器
   useEffect(() => {
-    if (!lottery?.drawTime) return;
+    if (!currentRound?.end_time) return;
 
     const timer = setInterval(() => {
       const now = Date.now();
-      const remaining = Math.max(0, Math.floor((lottery.drawTime - now) / 1000));
+      const remaining = Math.max(0, Math.floor((currentRound.end_time - now) / 1000));
       setCountdown(remaining);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [lottery?.drawTime]);
+  }, [currentRound?.end_time]);
 
   // 選擇號碼
   const toggleNumber = (num: number) => {
@@ -84,10 +106,31 @@ export default function HomePage() {
       return;
     }
 
-    const success = await buyTicket(selectedNumbers);
-    if (success) {
-      setSelectedNumbers([]);
-      toast.success('購票成功！');
+    if (!currentRound) {
+      toast.error('當前沒有開放的樂透輪次');
+      return;
+    }
+
+    try {
+      if (useMockData) {
+        // 使用模擬數據的購票邏輯
+        const success = await mockLottery.buyTicket(selectedNumbers);
+        if (success) {
+          setSelectedNumbers([]);
+          toast.success('購票成功！');
+        }
+      } else {
+        // 使用真實合約的購票邏輯
+        purchaseTickets({
+          roundId: currentRound.round_id,
+          numberSets: [selectedNumbers]
+        });
+        setSelectedNumbers([]);
+        toast.success('購票交易已提交！');
+      }
+    } catch (error) {
+      console.error('購票失敗:', error);
+      toast.error('購票失敗，請重試');
     }
   };
 

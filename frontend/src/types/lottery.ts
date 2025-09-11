@@ -50,10 +50,13 @@ export interface LotteryRound {
   ticket_price: number;
   start_time: number;
   end_time: number;
-  status: 'Open' | 'Closed';
+  draw_time: number; // 開獎時間
+  status: 'Open' | 'Closed' | 'Drawing';
   total_tickets_sold: number;
   prize_pool: number;
   winning_numbers?: number[];
+  is_current: boolean; // 是否為當前期
+  expires_at: number; // 到期時間戳
   prizes?: {
     tier1: number;
     tier2: number;

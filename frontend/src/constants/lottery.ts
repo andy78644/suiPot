@@ -44,9 +44,15 @@ export const LOTTERY_CONSTANTS = {
   
   // 時間相關
   CLAIM_PERIOD_DAYS: 90,
+  
+  // 每期相關設定
+  ROUND_DURATION_DAYS: 7, // 每期持續7天
+  DRAW_WINDOW_HOURS: 1,   // 開獎窗口1小時
+  
   ROUND_STATUS: {
     OPEN: 'Open',
-    CLOSED: 'Closed'
+    CLOSED: 'Closed',
+    DRAWING: 'Drawing'
   } as const
 };
 
