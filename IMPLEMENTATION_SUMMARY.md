@@ -87,7 +87,12 @@ suiPot/
 │   │   ├── random.move        # 隨機數生成
 │   │   └── treasury.move      # 金庫管理
 │   ├── tests/                 # 測試文件
-│   └── Move.toml              # Move 配置
+│   │   ├── ticket_tests.move        # 彩券模組測試
+│   │   ├── lottopot_tests.move      # 核心合約測試
+│   │   ├── treasury_tests.move      # 金庫模組測試
+│   │   └── integration_tests.move   # 集成測試
+│   ├── Move.toml              # Move 配置
+│   └── README.md              # 合約文檔
 │
 ├── frontend/                   # 前端應用
 │   ├── src/
@@ -186,6 +191,79 @@ suiPot/
 - ✅ FR-6.4: 健康檢查
 - ✅ FR-6.5: 參數調整
 - ✅ FR-6.6: 逾期回收
+
+## 🧪 測試覆蓋
+
+### 測試文件
+已創建完整的測試套件，覆蓋所有核心功能：
+
+#### 1. ticket_tests.move（彩券模組測試）
+- ✅ 創建有效彩券
+- ✅ 無效號碼數量檢測
+- ✅ 號碼範圍驗證（1-50）
+- ✅ 重複號碼檢測
+- ✅ 匹配計算（全中/部分/無）
+- ✅ 中獎等級設置
+- ✅ 領獎流程
+- ✅ 重複領獎防護
+
+#### 2. lottopot_tests.move（核心合約測試）
+- ✅ 創建輪次
+- ✅ 購買彩券（單張/批量）
+- ✅ 批量購票上限（50 張）
+- ✅ 支付金額驗證
+- ✅ 系統暫停/恢復
+- ✅ 暫停時禁止操作
+- ✅ 手續費比例更新
+- ✅ 參數驗證（輪期長度、手續費上限）
+
+#### 3. treasury_tests.move（金庫模組測試）
+- ✅ 手續費收集
+- ✅ 多次手續費累積
+- ✅ 手續費提領（管理員）
+- ✅ 餘額不足保護
+- ✅ 無效金額檢查
+- ✅ Rollover 資金添加
+- ✅ Rollover 資金提取
+- ✅ 複合操作測試
+
+#### 4. integration_tests.move（集成測試）
+- ✅ 完整樂透流程
+  - 創建輪次
+  - 多用戶購票
+  - 驗證購票結果
+  - 手續費收集
+  - 管理員提領
+- ✅ 暫停恢復完整流程
+- ✅ 批量購買最大數量測試
+
+### 運行測試
+```bash
+cd contracts
+
+# 編譯合約
+sui move build
+
+# 運行所有測試
+sui move test
+
+# 運行特定測試模組
+sui move test ticket_tests
+sui move test lottopot_tests
+sui move test treasury_tests
+sui move test integration_tests
+
+# 查看測試覆蓋率
+sui move test --coverage
+```
+
+### 測試覆蓋率統計
+- **票務模組**: 8 個測試用例
+- **核心合約**: 8 個測試用例
+- **金庫模組**: 8 個測試用例
+- **集成測試**: 3 個測試用例
+- **總計**: 27 個測試用例
+- **預計覆蓋率**: >70%
 
 ## 🚀 下一步工作
 
